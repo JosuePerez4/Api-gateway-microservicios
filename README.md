@@ -86,7 +86,7 @@ Por defecto el gateway escucha en **8080** (`server.port` en `application.yml`).
 ## Cómo ejecutarlo
 
 ```bash
-# Compilar y arrancar (ajusta las URLs a tu entorno)
+# Ejemplo, cambiar las urls y nombres de variables de entorno, según preferencia
 export CONFERENCE_SERVICE_URL=http://localhost:9001
 export AUTH_SERVICE_URL=http://localhost:9002
 export PAPER_SERVICE_URL=http://localhost:9003
@@ -97,7 +97,7 @@ export PAPER_SERVICE_URL=http://localhost:9003
 O, tras empaquetar:
 
 ```bash
-./mvnw package -DskipTests
+./mvnw package -DskipTestsg
 java -jar target/api-gateway-0.0.1-SNAPSHOT.jar
 ```
 
