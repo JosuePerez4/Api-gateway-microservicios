@@ -44,3 +44,15 @@ management:
     web:
       exposure:
         include: health,info,gateway
+
+logging:
+  level:
+    root: INFO
+    "[org.springframework.cloud.gateway]": DEBUG
+    "[org.springframework.cloud.gateway.filter]": DEBUG
+    "[org.springframework.cloud.gateway.filter.factory]": DEBUG
+    "[org.springframework.cloud.gateway.handler]": DEBUG
+    "[org.springframework.cloud.gateway.handler.predicate]": DEBUG
+    "[org.springframework.cloud.gateway.route]": DEBUG
+    "[reactor.netty.http.client]": DEBUG
+    "[reactor.netty.http.server]": DEBUG
