@@ -1,0 +1,32 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway-service
+  config:
+    import: optional:file:.env[.properties]
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: conference-service
+              uri: ${CONFERENCE_SERVICE_URL}
+              predicates:
+                - Path=/conferences/**
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL}
+              predicates:
+                - Path=/api/v1/auth/**
+            - id: paper-service
+              uri: ${PAPER_SERVICE_URL}
+              predicates:
+                - Path=/papers/**, /files/**
+management:
+  endpoint:
+    gateway:
+      access: read-only
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
