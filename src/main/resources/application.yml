@@ -22,6 +22,20 @@ spring:
               uri: ${PAPER_SERVICE_URL}
               predicates:
                 - Path=/papers/**, /files/**
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - "${ALLOWED_ORIGINS}"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
 management:
   endpoint:
     gateway:
