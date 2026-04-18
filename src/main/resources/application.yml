@@ -43,9 +43,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
-
+        include: health,info,gateway,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+    export:
+      zipkin:
+        enabled: ${ZIPKIN_EXPORT_ENABLED:true}
+        endpoint: ${ZIPKIN_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}
 logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+  include-application-name: false
   level:
     root: INFO
     "[org.springframework.cloud.gateway]": DEBUG
