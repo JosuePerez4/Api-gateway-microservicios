@@ -115,27 +115,11 @@ La configuración limita el acceso al endpoint `gateway` a **solo lectura** (`ma
 
 ---
 
-## Estructura del repositorio
-
-```
-src/main/java/.../api_gateway/   # Punto de arranque Spring Boot
-src/main/resources/application.yml  # Rutas, puerto, Actuator
-src/test/                        # Tests de contexto
-```
-
----
-
 ## Tests
 
 ```bash
 ./mvnw test
 ```
-
----
-
-## Licencia
-
-Define la licencia del proyecto aquí si aplica.
 
 ---
 
