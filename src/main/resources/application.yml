@@ -25,6 +25,7 @@ spring:
               predicates:
                 - Path=/papers/**, /files/**
           globalcors:
+            add-to-simple-url-handler-mapping: true
             cors-configurations:
               '[/**]':
                 allowedOrigins:
@@ -39,6 +40,7 @@ spring:
                 allowedHeaders:
                   - "*"
                 allowCredentials: true
+                maxAge: 3600
 management:
   endpoint:
     gateway:
