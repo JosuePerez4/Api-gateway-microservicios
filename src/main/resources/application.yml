@@ -24,6 +24,10 @@ spring:
               uri: ${PAPER_SERVICE_URL}
               predicates:
                 - Path=/papers/**, /files/**
+            - id: registration-service
+              uri: ${REGISTRATION_SERVICE_URL}
+              predicates:
+                - Path=/registrations/**
           globalcors:
             add-to-simple-url-handler-mapping: true
             cors-configurations:
