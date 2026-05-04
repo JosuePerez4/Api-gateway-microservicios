@@ -41,6 +41,12 @@ Las rutas se definen en `src/main/resources/application.yml`. Resumen:
 
 Ejemplo: una petición a `http://localhost:8080/conferences/...` se proxifica al servicio de conferencias definido en `CONFERENCE_SERVICE_URL`.
 
+### Semántica de proxy
+
+- El gateway **no** aplica `StripPrefix`, `RewritePath` ni filtros equivalentes: el servicio destino recibe el path original que llegó al gateway.
+- Las URIs destino deben incluir esquema (`http://` o `https://`) y no deben incluir el prefijo de ruta que ya aporta la petición entrante.
+- La ruta `paper-service` agrupa dos patrones en el mismo predicado `Path`: `/papers/**` y `/files/**`.
+
 ```mermaid
 flowchart LR
   Cliente["Cliente / Front"]
@@ -90,6 +96,16 @@ Variables opcionales de observabilidad:
 
 Opcionalmente, el proyecto puede cargar un archivo **`.env`** en la raíz del proyecto (`spring.config.import: optional:file:.env[.properties]`). Si lo usas, define ahí las mismas variables sin commitear secretos al repositorio.
 
+Ejemplo local:
+
+```properties
+CONFERENCE_SERVICE_URL=http://localhost:9001
+AUTH_SERVICE_URL=http://localhost:9002
+PAPER_SERVICE_URL=http://localhost:9003
+REGISTRATION_SERVICE_URL=http://localhost:9004
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
 ### Puerto
 
 Por defecto el gateway escucha en **8080** (`server.port` en `application.yml`).
@@ -105,6 +121,27 @@ La política CORS se configura globalmente para todas las rutas (`[/**]`):
 - `maxAge`: 3600 segundos.
 
 El filtro `DedupeResponseHeader` conserva el primer valor de `Access-Control-Allow-Origin` y `Access-Control-Allow-Credentials` cuando upstream y gateway devuelven cabeceras duplicadas.
+
+---
+
+## Cómo añadir o modificar una ruta
+
+1. Añade o cambia la entrada en `spring.cloud.gateway.server.webflux.routes` dentro de `src/main/resources/application.yml`.
+2. Usa un `id` estable y descriptivo; se reutiliza en logs, métricas y `GET /actuator/gateway`.
+3. Define la URI con una variable de entorno nueva (`${NOMBRE_SERVICE_URL}`) para no fijar hosts por entorno en el repositorio.
+4. Documenta la variable en la tabla de configuración de este README.
+5. Si el upstream espera un path distinto al público, añade explícitamente un filtro de gateway (`StripPrefix`, `RewritePath`, etc.) y documenta esa transformación.
+
+Ejemplo mínimo:
+
+```yaml
+- id: notifications-service
+  uri: ${NOTIFICATION_SERVICE_URL}
+  predicates:
+    - Path=/notifications/**
+```
+
+Para validar el cambio, arranca el gateway con todas las variables obligatorias y revisa `GET /actuator/gateway`; el `routeId` observado en logs y métricas debe coincidir con el `id` configurado.
 
 ---
 
