@@ -28,6 +28,18 @@ spring:
               uri: ${REGISTRATION_SERVICE_URL}
               predicates:
                 - Path=/registrations/**
+            - id: room-service
+              uri: ${ROOM_SERVICE_URL}
+              predicates:
+                - Path=/rooms/**
+            - id: schedule-service
+              uri: ${SCHEDULE_SERVICE_URL}
+              predicates:
+                - Path=/schedule/**
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URL}
+              predicates:
+                - Path=/notifications/**
           globalcors:
             add-to-simple-url-handler-mapping: true
             cors-configurations:
