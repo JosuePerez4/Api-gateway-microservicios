@@ -38,8 +38,13 @@ Las rutas se definen en `src/main/resources/application.yml`. Resumen:
 | Autenticación | `/api/v1/auth/**` | `AUTH_SERVICE_URL` |
 | Papers / archivos | `/papers/**`, `/files/**` | `PAPER_SERVICE_URL` |
 | Inscripciones | `/registrations/**` | `REGISTRATION_SERVICE_URL` |
+| Salas | `/rooms/**` | `ROOM_SERVICE_URL` |
+| Agenda | `/schedule/**` | `SCHEDULE_SERVICE_URL` |
+| Notificaciones | `/notifications/**` | `NOTIFICATION_SERVICE_URL` |
 
 Ejemplo: una petición a `http://localhost:8080/conferences/...` se proxifica al servicio de conferencias definido en `CONFERENCE_SERVICE_URL`.
+
+Cada ruta usa el predicado `Path` de Spring Cloud Gateway. No hay filtros de `StripPrefix`, `RewritePath` ni balanceo por descubrimiento de servicios configurados en este repositorio; por tanto, el microservicio destino recibe el path original y cada `*_SERVICE_URL` debe ser una URI HTTP completa con esquema y host.
 
 ```mermaid
 flowchart LR
@@ -49,12 +54,18 @@ flowchart LR
   A["Auth"]
   P["Paper"]
   R["Registration"]
+  Rooms["Room"]
+  S["Schedule"]
+  N["Notification"]
 
   Cliente --> GW
   GW -->|"/conferences/**"| C
   GW -->|"/api/v1/auth/**"| A
   GW -->|"/papers/**, /files/**"| P
   GW -->|"/registrations/**"| R
+  GW -->|"/rooms/**"| Rooms
+  GW -->|"/schedule/**"| S
+  GW -->|"/notifications/**"| N
 ```
 
 ---
@@ -78,6 +89,9 @@ El gateway necesita las URLs base de cada microservicio (incluye esquema y host,
 | `AUTH_SERVICE_URL` | Servicio de autenticación |
 | `PAPER_SERVICE_URL` | Servicio de papers y archivos |
 | `REGISTRATION_SERVICE_URL` | Servicio de inscripciones |
+| `ROOM_SERVICE_URL` | Servicio de salas |
+| `SCHEDULE_SERVICE_URL` | Servicio de agenda |
+| `NOTIFICATION_SERVICE_URL` | Servicio de notificaciones |
 | `ALLOWED_ORIGINS` | Origen permitido para CORS, por ejemplo `http://localhost:5173` |
 
 Variables opcionales de observabilidad:
@@ -116,6 +130,9 @@ export CONFERENCE_SERVICE_URL=http://localhost:9001
 export AUTH_SERVICE_URL=http://localhost:9002
 export PAPER_SERVICE_URL=http://localhost:9003
 export REGISTRATION_SERVICE_URL=http://localhost:9004
+export ROOM_SERVICE_URL=http://localhost:9005
+export SCHEDULE_SERVICE_URL=http://localhost:9006
+export NOTIFICATION_SERVICE_URL=http://localhost:9007
 export ALLOWED_ORIGINS=http://localhost:5173
 
 ./mvnw spring-boot:run
@@ -191,10 +208,10 @@ El proyecto incluye Zipkin. Por defecto intenta exportar trazas a `http://127.0.
 
 ## Solución de problemas rápida
 
-- **La aplicación no arranca por placeholders sin resolver:** confirma que todas las variables obligatorias (`*_SERVICE_URL` y `ALLOWED_ORIGINS`) estén definidas o presentes en `.env`.
+- **La aplicación no arranca por placeholders sin resolver:** confirma que todas las variables obligatorias (`*_SERVICE_URL` y `ALLOWED_ORIGINS`) estén definidas o presentes en `.env`. La configuración actual requiere URLs para conferencias, autenticación, papers, inscripciones, salas, agenda y notificaciones.
 - **CORS falla con credenciales:** `ALLOWED_ORIGINS` debe ser un origen concreto; con `allowCredentials: true` no uses comodín `*`.
 - **No aparecen trazas en Zipkin:** revisa que Zipkin esté disponible en `ZIPKIN_ENDPOINT` y que `ZIPKIN_EXPORT_ENABLED=true`.
-- **Las rutas no coinciden:** consulta `GET /actuator/gateway` y valida que el path use uno de los prefijos configurados.
+- **Las rutas no coinciden:** consulta `GET /actuator/gateway` y valida que el path use uno de los prefijos configurados (`/conferences`, `/api/v1/auth`, `/papers`, `/files`, `/registrations`, `/rooms`, `/schedule` o `/notifications`).
 
 ---
 
@@ -205,6 +222,9 @@ CONFERENCE_SERVICE_URL=http://localhost:9001 \
 AUTH_SERVICE_URL=http://localhost:9002 \
 PAPER_SERVICE_URL=http://localhost:9003 \
 REGISTRATION_SERVICE_URL=http://localhost:9004 \
+ROOM_SERVICE_URL=http://localhost:9005 \
+SCHEDULE_SERVICE_URL=http://localhost:9006 \
+NOTIFICATION_SERVICE_URL=http://localhost:9007 \
 ALLOWED_ORIGINS=http://localhost:5173 \
 ./mvnw test
 ```
