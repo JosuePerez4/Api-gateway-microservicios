@@ -5,6 +5,8 @@ spring:
     name: api-gateway-service
   config:
     import: optional:file:.env[.properties]
+  codec:
+    max-in-memory-size: 50MB
   cloud:
     gateway:
       server:
