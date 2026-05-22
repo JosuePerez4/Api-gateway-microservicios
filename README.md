@@ -8,10 +8,13 @@ Punto de entrada único para el ecosistema de microservicios: enruta el tráfico
 
 Este repositorio contiene un **API Gateway** construido con **Spring Cloud Gateway** (stack reactivo sobre **WebFlux**). Actúa como fachada: las peticiones llegan al gateway (por defecto en el puerto **8080**) y se reenvían al microservicio correspondiente según el prefijo de la URL.
 
+El destino de cada ruta se resuelve vía **Eureka** y **Spring Cloud LoadBalancer** (`lb://<serviceId>`): el gateway consulta el registry y elige una instancia registrada bajo el `spring.application.name` de cada microservicio.
+
 Ventajas típicas de este patrón:
 
 - **Un solo origen** para el cliente (CORS, documentación, versionado).
 - **Enrutado centralizado** y fácil de evolucionar cuando añades o cambias servicios.
+- **Descubrimiento dinámico** sin URLs fijas por microservicio en el gateway.
 - **Observabilidad** vía Spring Boot Actuator, Prometheus, Zipkin y logs de peticiones.
 
 ---
@@ -24,33 +27,40 @@ Ventajas típicas de este patrón:
 | Spring Boot | 4.0.x |
 | Spring Cloud | 2025.1.x |
 | Gateway | `spring-cloud-starter-gateway-server-webflux` |
+| Service discovery | `spring-cloud-starter-netflix-eureka-client` |
+| Load balancing | `spring-cloud-starter-loadbalancer` |
 | Observabilidad | Spring Boot Actuator, Micrometer Prometheus, Zipkin |
 
 ---
 
 ## Rutas configuradas
 
-Las rutas se definen en `src/main/resources/application.yml`. Resumen:
+Las rutas se definen en `src/main/resources/application.yml`. Cada destino usa `lb://` con el **serviceId** registrado en Eureka (`spring.application.name` del microservicio):
 
-| Servicio (lógico) | Patrón de ruta | Variable de entorno (URI destino) |
-|---------------------|----------------|-----------------------------------|
-| Conferencias | `/conferences/**` | `CONFERENCE_SERVICE_URL` |
-| Autenticación | `/api/v1/auth/**` | `AUTH_SERVICE_URL` |
-| Papers / archivos | `/papers/**`, `/files/**` | `PAPER_SERVICE_URL` |
-| Inscripciones | `/registrations/**` | `REGISTRATION_SERVICE_URL` |
+| Servicio (lógico) | Patrón de ruta | URI destino (`lb://`) |
+|---------------------|----------------|------------------------|
+| Conferencias | `/conferences/**` | `lb://conference-service` |
+| Autenticación | `/api/v1/auth/**` | `lb://auth-service` |
+| Papers / archivos | `/papers/**`, `/files/**` | `lb://paper` |
+| Inscripciones | `/registrations/**` | `lb://registration-service` |
+| Salas | `/rooms/**` | `lb://room` |
+| Agenda | `/schedule/**` | `lb://schedule` |
+| Notificaciones | `/notifications/**` | `lb://notification-service` |
 
-Ejemplo: una petición a `http://localhost:8080/conferences/...` se proxifica al servicio de conferencias definido en `CONFERENCE_SERVICE_URL`.
+Ejemplo: una petición a `http://localhost:8080/conferences/...` se proxifica a una instancia de `conference-service` descubierta en Eureka.
 
 ```mermaid
 flowchart LR
   Cliente["Cliente / Front"]
   GW["API Gateway :8080"]
-  C["Conference"]
-  A["Auth"]
-  P["Paper"]
-  R["Registration"]
+  Eureka["Eureka :8761"]
+  C["conference-service"]
+  A["auth-service"]
+  P["paper"]
+  R["registration-service"]
 
   Cliente --> GW
+  GW --> Eureka
   GW -->|"/conferences/**"| C
   GW -->|"/api/v1/auth/**"| A
   GW -->|"/papers/**, /files/**"| P
@@ -63,6 +73,7 @@ flowchart LR
 
 - **JDK 21**
 - **Maven** (o usar el wrapper incluido: `./mvnw`)
+- **Eureka Server** en ejecución (por defecto `http://localhost:8761`) con los microservicios **registrados y UP** antes de enrutar tráfico real
 
 ---
 
@@ -70,15 +81,10 @@ flowchart LR
 
 ### Variables de entorno
 
-El gateway necesita las URLs base de cada microservicio (incluye esquema y host, por ejemplo `http://localhost:9001`):
-
-| Variable | Uso |
-|----------|-----|
-| `CONFERENCE_SERVICE_URL` | Servicio de conferencias |
-| `AUTH_SERVICE_URL` | Servicio de autenticación |
-| `PAPER_SERVICE_URL` | Servicio de papers y archivos |
-| `REGISTRATION_SERVICE_URL` | Servicio de inscripciones |
-| `ALLOWED_ORIGINS` | Origen permitido para CORS, por ejemplo `http://localhost:5173` |
+| Variable | Obligatoria | Uso |
+|----------|-------------|-----|
+| `EUREKA_SERVER_URL` | Sí | URL del registry Eureka, p. ej. `http://localhost:8761/eureka` |
+| `ALLOWED_ORIGINS` | Sí | Origen permitido para CORS, p. ej. `http://localhost:5173` |
 
 Variables opcionales de observabilidad:
 
@@ -89,6 +95,12 @@ Variables opcionales de observabilidad:
 | `ZIPKIN_ENDPOINT` | `http://127.0.0.1:9411/api/v2/spans` | Endpoint HTTP de Zipkin. |
 
 Opcionalmente, el proyecto puede cargar un archivo **`.env`** en la raíz del proyecto (`spring.config.import: optional:file:.env[.properties]`). Si lo usas, define ahí las mismas variables sin commitear secretos al repositorio.
+
+El gateway **no** usa variables `*_SERVICE_URL`: el enrutado depende exclusivamente de Eureka y los nombres `lb://` de la tabla anterior.
+
+### Cliente Eureka en el gateway
+
+El gateway consume el registry (`fetch-registry: true`) pero no se registra como instancia descubrible (`register-with-eureka: false`).
 
 ### Puerto
 
@@ -110,12 +122,12 @@ El filtro `DedupeResponseHeader` conserva el primer valor de `Access-Control-All
 
 ## Cómo ejecutarlo
 
+1. Arranca **Eureka Server** (puerto 8761).
+2. Arranca los microservicios con `EUREKA_SERVER_URL` apuntando al mismo registry.
+3. Arranca el gateway:
+
 ```bash
-# Ejemplo, cambiar las urls y nombres de variables de entorno, según preferencia
-export CONFERENCE_SERVICE_URL=http://localhost:9001
-export AUTH_SERVICE_URL=http://localhost:9002
-export PAPER_SERVICE_URL=http://localhost:9003
-export REGISTRATION_SERVICE_URL=http://localhost:9004
+export EUREKA_SERVER_URL=http://localhost:8761/eureka
 export ALLOWED_ORIGINS=http://localhost:5173
 
 ./mvnw spring-boot:run
@@ -128,6 +140,8 @@ O, tras empaquetar:
 java -jar target/api-gateway-0.0.1-SNAPSHOT.jar
 ```
 
+Verifica en `http://localhost:8761` que los serviceIds (`auth-service`, `conference-service`, `paper`, etc.) aparecen como **UP**.
+
 ---
 
 ## Actuator (salud y gateway)
@@ -139,7 +153,7 @@ Están expuestos (entre otros) los endpoints:
 - **Rutas del gateway (solo lectura):** `GET /actuator/gateway`
 - **Métricas Prometheus:** `GET /actuator/prometheus`
 
-La configuración limita el acceso al endpoint `gateway` a **solo lectura** (`management.endpoint.gateway.access: read-only`).
+La configuración limita el acceso al endpoint `gateway` a **solo lectura** (`management.endpoint.gateway.access: read-only`). Las URIs de las rutas deben mostrarse como `lb://...`.
 
 ---
 
@@ -191,7 +205,8 @@ El proyecto incluye Zipkin. Por defecto intenta exportar trazas a `http://127.0.
 
 ## Solución de problemas rápida
 
-- **La aplicación no arranca por placeholders sin resolver:** confirma que todas las variables obligatorias (`*_SERVICE_URL` y `ALLOWED_ORIGINS`) estén definidas o presentes en `.env`.
+- **503 / No instances available for …:** el serviceId en `lb://` no coincide con `spring.application.name` en Eureka, o el microservicio no está registrado/UP. Revisa la tabla de rutas y el dashboard de Eureka.
+- **La aplicación no arranca por placeholders sin resolver:** confirma `EUREKA_SERVER_URL` y `ALLOWED_ORIGINS` (o `.env`).
 - **CORS falla con credenciales:** `ALLOWED_ORIGINS` debe ser un origen concreto; con `allowCredentials: true` no uses comodín `*`.
 - **No aparecen trazas en Zipkin:** revisa que Zipkin esté disponible en `ZIPKIN_ENDPOINT` y que `ZIPKIN_EXPORT_ENABLED=true`.
 - **Las rutas no coinciden:** consulta `GET /actuator/gateway` y valida que el path use uno de los prefijos configurados.
@@ -201,14 +216,11 @@ El proyecto incluye Zipkin. Por defecto intenta exportar trazas a `http://127.0.
 ## Tests
 
 ```bash
-CONFERENCE_SERVICE_URL=http://localhost:9001 \
-AUTH_SERVICE_URL=http://localhost:9002 \
-PAPER_SERVICE_URL=http://localhost:9003 \
-REGISTRATION_SERVICE_URL=http://localhost:9004 \
+EUREKA_SERVER_URL=http://localhost:8761/eureka \
 ALLOWED_ORIGINS=http://localhost:5173 \
 ./mvnw test
 ```
 
 ---
 
-*Proyecto de API Gateway para orquestar el acceso a microservicios de conferencias, autenticación, papers e inscripciones.*
+*Proyecto de API Gateway para orquestar el acceso a microservicios mediante descubrimiento Eureka y balanceo `lb://`.*
