@@ -38,6 +38,9 @@ Las rutas se definen en `src/main/resources/application.yml`. Resumen:
 | Autenticación | `/api/v1/auth/**` | `AUTH_SERVICE_URL` |
 | Papers / archivos | `/papers/**`, `/files/**` | `PAPER_SERVICE_URL` |
 | Inscripciones | `/registrations/**` | `REGISTRATION_SERVICE_URL` |
+| Salas | `/rooms/**` | `ROOM_SERVICE_URL` |
+| Agenda | `/schedule/**` | `SCHEDULE_SERVICE_URL` |
+| Notificaciones | `/notifications/**` | `NOTIFICATION_SERVICE_URL` |
 
 Ejemplo: una petición a `http://localhost:8080/conferences/...` se proxifica al servicio de conferencias definido en `CONFERENCE_SERVICE_URL`.
 
@@ -49,12 +52,18 @@ flowchart LR
   A["Auth"]
   P["Paper"]
   R["Registration"]
+  Room["Room"]
+  S["Schedule"]
+  N["Notification"]
 
   Cliente --> GW
   GW -->|"/conferences/**"| C
   GW -->|"/api/v1/auth/**"| A
   GW -->|"/papers/**, /files/**"| P
   GW -->|"/registrations/**"| R
+  GW -->|"/rooms/**"| Room
+  GW -->|"/schedule/**"| S
+  GW -->|"/notifications/**"| N
 ```
 
 ---
@@ -78,6 +87,9 @@ El gateway necesita las URLs base de cada microservicio (incluye esquema y host,
 | `AUTH_SERVICE_URL` | Servicio de autenticación |
 | `PAPER_SERVICE_URL` | Servicio de papers y archivos |
 | `REGISTRATION_SERVICE_URL` | Servicio de inscripciones |
+| `ROOM_SERVICE_URL` | Servicio de salas |
+| `SCHEDULE_SERVICE_URL` | Servicio de agenda |
+| `NOTIFICATION_SERVICE_URL` | Servicio de notificaciones |
 | `ALLOWED_ORIGINS` | Origen permitido para CORS, por ejemplo `http://localhost:5173` |
 
 Variables opcionales de observabilidad:
@@ -93,6 +105,10 @@ Opcionalmente, el proyecto puede cargar un archivo **`.env`** en la raíz del pr
 ### Puerto
 
 Por defecto el gateway escucha en **8080** (`server.port` en `application.yml`).
+
+### Límite de codecs WebFlux
+
+`spring.codec.max-in-memory-size` está configurado en **50MB**. Ese valor aplica a cuerpos que Spring WebFlux tenga que decodificar en memoria; si una ruta o filtro futuro lee cuerpos mayores, puede fallar con errores de límite de buffer. Mantén cargas grandes en modo streaming en los servicios destino o ajusta este valor de forma explícita por entorno.
 
 ### CORS
 
@@ -116,6 +132,9 @@ export CONFERENCE_SERVICE_URL=http://localhost:9001
 export AUTH_SERVICE_URL=http://localhost:9002
 export PAPER_SERVICE_URL=http://localhost:9003
 export REGISTRATION_SERVICE_URL=http://localhost:9004
+export ROOM_SERVICE_URL=http://localhost:9005
+export SCHEDULE_SERVICE_URL=http://localhost:9006
+export NOTIFICATION_SERVICE_URL=http://localhost:9007
 export ALLOWED_ORIGINS=http://localhost:5173
 
 ./mvnw spring-boot:run
@@ -195,6 +214,7 @@ El proyecto incluye Zipkin. Por defecto intenta exportar trazas a `http://127.0.
 - **CORS falla con credenciales:** `ALLOWED_ORIGINS` debe ser un origen concreto; con `allowCredentials: true` no uses comodín `*`.
 - **No aparecen trazas en Zipkin:** revisa que Zipkin esté disponible en `ZIPKIN_ENDPOINT` y que `ZIPKIN_EXPORT_ENABLED=true`.
 - **Las rutas no coinciden:** consulta `GET /actuator/gateway` y valida que el path use uno de los prefijos configurados.
+- **Fallan cuerpos grandes al ser decodificados por WebFlux:** revisa el límite `spring.codec.max-in-memory-size` (50MB por defecto en este proyecto) antes de añadir filtros que lean o transformen el body completo.
 
 ---
 
@@ -205,6 +225,9 @@ CONFERENCE_SERVICE_URL=http://localhost:9001 \
 AUTH_SERVICE_URL=http://localhost:9002 \
 PAPER_SERVICE_URL=http://localhost:9003 \
 REGISTRATION_SERVICE_URL=http://localhost:9004 \
+ROOM_SERVICE_URL=http://localhost:9005 \
+SCHEDULE_SERVICE_URL=http://localhost:9006 \
+NOTIFICATION_SERVICE_URL=http://localhost:9007 \
 ALLOWED_ORIGINS=http://localhost:5173 \
 ./mvnw test
 ```
