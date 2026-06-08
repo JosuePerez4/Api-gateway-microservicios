@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:2
 
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
 WORKDIR /build
